@@ -1,219 +1,110 @@
-import requests, re
+import requests, re, os
 from bs4 import BeautifulSoup
 from datetime import datetime
-import pprint
 
 
-def setConstants():
-    payload = {'dirId': '',
-              'docId': '',
-              'answerSortType': 'DEFAULT',
-              'answerFilterType': 'ALL',
-              'answerViewType': 'DETAIL',
-              'page': '1',
-              'count': '',
-              }
+def set_constants():
+    spliter = '\n=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*\n'
 
-    return re.compile(r'\s\s+'), payload
+    return re.compile(r'\s\s+'), spliter
 
 
-#===================질문등록날짜===================#
-def getRegisteredDate(soup, dates):
-    now = datetime.now()
-    for date in soup.select('ul.basic1 .txt_inline'):
-        form = date.text.replace(' ', '')
-        if form[-2] == '일':
-            day = int(now.day) - int(form[:-2])
-            form = '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(day).zfill(2))
-        else:
-            form = form.replace('.', '-')[:-1]
-
-        dates.append(form)
-
-    return dates
-
-
-def getTotalDocumentNumber(soup):
+def get_total_document_number(soup):
     num = soup.select('span.number').pop().text.split('/')[1].replace(',', '')[:-1]
 
     return int(num)
 
 
-#===================질문제목===================#
-def getTitles(soup, titles):
-    for title in soup.select('ul.basic1 ._searchListTitleAnchor'):
-        titles.append(title.text)
-
-    return titles
-
-
 #===================질문링크===================#
-def getLinks(soup, links):
+def get_links(soup, links):
     for a_tag in soup.select('ul.basic1 a._searchListTitleAnchor'):
         links.append(a_tag.attrs['href'])
 
     return links
 
 
-def getNumberOfAnswer(soup, answer_num):
+def get_number_of_answer(soup, answer_num):
     for span_tag in soup.select('ul.basic1 dd.txt_block span.hit'):
         answer_num.append(int(span_tag.text.split(' ')[1]))
 
     return answer_num
 
 
-def getOuterInfo():
+def get_outer_info():
     html = requests.get(url).text
     soup = BeautifulSoup(html, 'html.parser')
-    num = getTotalDocumentNumber(soup)
-    titles = []
+    num = get_total_document_number(soup)
     links = []
-    dates = []
-    answer_num = []
 
     last_page = num // 10
     if num % 10 != 0: last_page += 1
     current_page = 1
 
     while current_page <= last_page:
-        titles.extend(getTitles(soup, []))
-        links.extend(getLinks(soup, []))
-        dates.extend(getRegisteredDate(soup, []))
-        answer_num.extend(getNumberOfAnswer(soup, []))
+        links.extend(get_links(soup, []))
 
         current_page += 1
         html = requests.get(url+'&page='+str(current_page)).text
         soup = BeautifulSoup(html, 'html.parser')
 
-    return titles, links, dates, num, answer_num
-
-
-def setPayload(link, answerNum):
-    # payload = {'dirId': '',
-    #            'docId': '',
-    #            'answerSortType': 'DEFAULT',
-    #            'answerFilterType': 'ALL',
-    #            'answerViewType': 'DETAIL',
-    #            'page': '1',
-    #            'count': '',
-    #            }
-    dirId = link.split('dirId=')[1].split('&')[0]
-    docId = link.split('docId=')[1].split('&')[0]
-    count = str(answerNum)
-
-    payload['dirId'] = dirId
-    payload['docId'] = docId
-    payload['count'] = count
+    return links, num
 
 
 #===================질문내용===================#
-def getQnA():
-    contents = []
+def get_qna():
     questions = []
     answers = []
-    deleted = []
     userinfos = []
-    answered_dates = []
+    questioned_dates = []
 
     cnt = -1
     for idx in range(0, len(links)):
-        setPayload(links[idx], answer_num[idx])
-        #pprint.pprint(payload)
-        content = requests.get(links[idx], headers=payload).text
-        if "http://www.w3.org/1999/xhtml" in content:
-            cnt += 1
-            deleted.append(cnt)
-            dates.remove(dates[len(contents) - cnt])
-            titles.remove(titles[len(contents) - cnt])
-            continue
-
-        contents.append(content)
-
-    for content in contents:
+        content = requests.get(links[idx]).text
         soup = BeautifulSoup(content, 'html.parser')
+
+        if len(soup.select('div._questionContentsArea')) <= 0: # 제대로 안들어가지면
+            cnt += 1
+            continue
 
         question = soup.select('#content .c-heading__content')
         if len(question) == 0:
             question = soup.select('#content .c-heading__title-inner')
 
         questions.append(re.sub(pattern, '', question.pop().text))
+        questioned_dates.append(soup.select('div.question-content span.c-userinfo__date').pop().text.split('일')[1])
 
-        answer = soup.select('._answerList .se-module')
-        if len(question) == 0:
-            answer = soup.select('._answerList ._endContents')
+        answer = soup.select('._answerList se-main-container')
+
+        if len(answer) == 0:
+            answer = soup.select('._answerList .c-heading-answer__content-user')
 
         answer_list = []
         for a in answer:
-            answer_list.append(re.sub(pattern, '', a.text).replace('\u200b', ' ').replace('\xa0', ' '))
+            clean_text = re.sub(pattern, '', a.text).replace('\u200b', ' ').replace('\xa0', ' ')
+            if not clean_text in answer_list:
+                answer_list.append(clean_text)
 
         answers.append(answer_list)
 
         user_list = []
-        user = soup.select('._answer .c-userinfo')
+        user = soup.select('._answer .c-heading-answer__title')
         for usr in user:
             info = re.sub(pattern, '', usr.text)
 
-            if '한의' in info or '한방' in info:
-                usrType = 'o'
+            if '보험' in info:
+                usrType = '보험'
+            elif '한의' in info or '한방' in info:
+                usrType = '한의학'
             elif '의' in info or '과' in info or '클리닉' in info:
-                usrType = 'd'
+                usrType = '양의햑'
             else:
-                usrType = 'e'
+                usrType = '기타'
 
             user_list.append(usrType)
 
         userinfos.append(user_list)
 
-        date_list = []
-        answered_date = soup.select('c-heading-answer__content-date')
-        for date in answered_date:
-            date_list.append(date)
-
-        answered_dates.append(date_list)
-
-    return contents, questions, answers, userinfos, answered_dates
-
-
-def _print():
-    print('-\n\n전체 문서 갯수 : '+str(total_num), end='-\n\n')
-    for idx in range(0, len(titles)):
-        print(str(idx+1)+'. ' + titles[idx]+'\t('+dates[idx]+')')
-        print('-->'+links[idx])
-
-
-def printQ():
-    print('-\n\n전체 문서 갯수 : ' + str(total_num), end='\n-\n\n')
-    for idx in range(0, len(titles)):
-        print(str(idx + 1) + '. ' + titles[idx] + '\t답변갯수 : ' +str(answer_num[idx]) +'\t(' + dates[idx] + ')')
-        print('--> Q.  ' + questions[idx])
-        for answer in answers[idx]:
-            print('--> A.  ' + answer)
-
-        print('\n\n')
-
-
-def makeAnswerData():
-    pass
-
-
-def makeQuestionData():
-    pass
-
-
-def makeJson():
-    Adocument = {'date': answered_dates,
-                 'writer': userInfos,
-                 'content': answers
-    }
-    Qdocument = {'date': dates,
-                'title': titles,
-                'link': links,
-                 'content': questions,
-                 'answer': Adocument
-    }
-    data = {'keyword': query,
-            'documents': Qdocument
-            }
+    return questions, questioned_dates, answers, userinfos, cnt
 
 
 def data_in():
@@ -226,62 +117,48 @@ def data_in():
     return query, _from+'.%7C'+_to, url
 
 
+def create_file_one():
+    current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    start_date = period.split('.%7C')[0][:-1].replace('.', '')
+    end_date = period.split('.%7C')[1][:-1].replace('.', '')
+    DIR_NAME = '[' + current_time + ']' + start_date + '-' + end_date
+    FILE_NAME = start_date+'-'+end_date+'.txt'
+
+    try:
+        if not os.path.isdir(DIR_NAME):
+            os.makedirs(os.path.join(DIR_NAME))
+
+    except Exception as e:
+        print('fail to make root directory')
+        raise
+
+    if not os.path.isfile(DIR_NAME+FILE_NAME): #없으면
+        file = open(DIR_NAME+'/'+FILE_NAME, 'w')
+        read_me = open(DIR_NAME + '/' + 'READ ME.txt', 'w')
+
+        for q_idx in range(0, len(questions)):
+            #print('len of questions : '+str(len(questions)))
+            file.write('Q.'+str(q_idx+6686)+') '+dates[q_idx]+'\n'+questions[q_idx]+'\n\n')
+
+            for a_idx in range(0, len(answers[q_idx])):
+                #print('q_idx, a_idx, len of userInfo[q_idx] : ' +str(q_idx)+'///'+str(a_idx)+'//////'+str(len(userInfos[q_idx])))
+                file.write('A.'+str(q_idx+6686)+'-'+str(a_idx+1)+') '+userInfos[q_idx][a_idx]+'\n'+answers[q_idx][a_idx]+'\n\n')
+
+            file.write(spliter)
+
+        read_me.write('skipped document : '+str(skipped))
+
+    read_me.close()
+    file.close()
+
+
 if __name__ == "__main__":
-    global links, contents, titles, total_num, pages, amount, questions, answers, \
-        url, pattern, html, soup, query, dates, userInfos, answered_dates, answer_num, payload
+    global links, titles, total_num, questions, answers, url, pattern, \
+        html, soup, query, dates, userInfos, answer_num, spliter, skipped
 
-    pattern, payload = setConstants()
+    pattern, spliter = set_constants()
     query, period, url = data_in()
-    titles, links, dates, total_num, answer_num = getOuterInfo()
+    links, total_num = get_outer_info()
+    questions, dates, answers, userInfos, skipped = get_qna()
+    create_file_one()
 
-    # total_num = getNumberOfDocument()
-    # amount = setNumberOfDocumentToFind()
-    # pages = getPages()
-    contents, questions, answers, userInfos, answered_dates = getQnA()
-    #_print()
-    printQ()
-    #current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-
-
-#page 이동하며 스크래핑, 로그인 세션, pop문제, UI, 모듈화, 답변한사람 정보, 질문날짜, 답변날
-
-# total_data = {
-#     '키워드':
-#         {'문서갯수': total_num,
-#          '질문(문서)':
-#              {'등록일': dates,
-#               '제목': titles,
-#               '링크': links,
-#               '질문내용': questions,
-#               '답변':
-#                   {
-#                    '작성자': answers,
-#                    '답변내용': answers,
-#                    '작성일': answers
-#                    }
-#               }
-#          }
-# }
-#
-# Adocument = {
-#     'typeOfWriter': answers,
-#     'registeredDate': dates,
-#     'answerContent': contents,
-# }
-#
-# Qdocument = {
-#     'RegisteredDate': dates,
-#     'title': titles,
-#     'questionContent': contents,
-#     'link': links,
-#     'answer': Adocument
-# }
-#
-# search_result = {
-#     'keyword':
-#         {
-#             'numberOfDocument': total_num,
-#             'documents': Qdocument
-#         }
-# }
