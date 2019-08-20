@@ -1,14 +1,13 @@
 # pharm-textmining
-====================
 
 ## 소스
---------------------
 
-### main.py
-크롤링 소스
 
-### ju.py
-주영이가 한 text tokenizer 파일
+> ### main.py
+> 크롤링 소스
+
+> ### ju.py
+> 주영이가 한 text tokenizer 파일
 
 ### chromedriver
 selenium쓸 때 필요한거
