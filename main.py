@@ -257,7 +257,7 @@ def create_file():
     end_date = period.split('.%7C')[1][:-1].replace('.', '')
     DIR_NAME = '[' + current_time + ']' + start_date + '-' + end_date
     FILE_NAME = start_date+'-'+end_date+'.txt'
-    offset = 5148
+    offset = 4764
 
     try:
         if not os.path.isdir(DIR_NAME):
@@ -309,13 +309,14 @@ if __name__ == "__main__":
     print('sum : '+str(user_info_cnt[0]+user_info_cnt[1]+user_info_cnt[2]+user_info_cnt[3]))
     os.system('say "다 끝났어"')
 
-
 #===================================================================================================
 
 # 2016.09.01.-2016.12.31.
 # questions : 1154
 # answers : 2617
 # [ensurance, oriental, medical, etc] : [66, 62, 1088, 1401] 2016.11.09. 특수케이스!!!! @@@@@Q.550@@@@@
+
+#===================================================================================================
 
 # 2017.01.01.-2017.05.01.
 # questions : 1045
@@ -331,6 +332,14 @@ if __name__ == "__main__":
 # questions : 94
 # answers : 185
 # [ensurance, oriental, medical, etc] : [2, 2, 29, 152]
+#---------------------------------------------------------------------------------------------------
+#
+# 2017 SUMMARY
+# Total Questions : 2176
+# Total Answers : 4592
+# User Type(Answer) Summary [ Ensurance, Oriental, Medical, ETC ] : [ 69, 176, 1243, 3104 ]
+#
+#===================================================================================================
 
 # 2018.01.01.-2018.07.31.
 # questions : 718
@@ -338,11 +347,24 @@ if __name__ == "__main__":
 # [ensurance, oriental, medical, etc] : [50, 68, 242, 947]
 
 # 2018.08.01.-2018.12.31.
-# questions : 711
-# answers : 1765
-# [ensurance, oriental, medical, etc] : [63, 91, 502, 1109]
+# questions : 715
+# answers : 1774
+# [ensurance, oriental, medical, etc] : [61, 92, 504, 1117]
+#---------------------------------------------------------------------------------------------------
+#
+# 2018 SUMMARY
+# Total Questions : 1433
+# Total Answers : 3081
+# User Type(Answer) Summary [ Ensurance, Oriental, Medical, ETC ] : [ 111, 160, 746, 2064 ]
+#
+#===================================================================================================
 
 # 2019.01.01.-2019.08.14.
-# questions : 931
-# answers : 2052
-# [ensurance, oriental, medical, etc] : [34, 194, 348, 1476]
+# questions : 927
+# answers : 2043
+# [ensurance, oriental, medical, etc] : [34, 192, 347, 1470]
+#
+# ==================
+#
+# spent time : 309.64
+# sum : 2043
